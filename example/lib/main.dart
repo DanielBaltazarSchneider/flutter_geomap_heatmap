@@ -113,7 +113,7 @@ class Controller extends ChangeNotifier {
           const Color(0xffD10202),
         ]);
 
-    List<GeoSampling> calculatedValues = await Isolate.run(() => HeatmapUtil.generateHeatmap(heatmapOption: heatmapOption));
+    List<GeoSampling> calculatedValues = await Isolate.run(() => HeatmapUtil.generateHeatmap(heatmapOptionMap: heatmapOption.toMap()));
     polygons.addAll(createHeatMapPolygons(calculatedValues));
   }
 

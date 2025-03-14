@@ -8,11 +8,12 @@ import '../geo_util/geo_util.dart';
 class HeatmapUtil {
   final geoUtil = GeoUtil();
 
-  static List<GeoSampling> generateHeatmap({required HeatmapOption heatmapOption}) {
-    return HeatmapUtil().generateMap(heatmapOption: heatmapOption);
+  static List<GeoSampling> generateHeatmap({required Map<String, dynamic> heatmapOptionMap}) {
+    return HeatmapUtil().generateMap(heatmapOptionMap: heatmapOptionMap);
   }
 
-  List<GeoSampling> generateMap({required HeatmapOption heatmapOption}) {
+  List<GeoSampling> generateMap({required Map<String, dynamic> heatmapOptionMap}) {
+    HeatmapOption heatmapOption = HeatmapOption.fromMap(heatmapOptionMap);
     List<List<Coordinate>> subPolygons = geoUtil.generateSubPolygons(heatmapOption.polygon, heatmapOption.mapResolution);
     subPolygons = geoUtil.cutExcessSubPolygons(heatmapOption.polygon, subPolygons);
 
@@ -46,4 +47,38 @@ class HeatmapOption {
   int mapResolution;
   int numberOfSubColors;
   List<Color> colors;
+
+  factory HeatmapOption.fromMap(Map<String, dynamic> map) {
+    return HeatmapOption(
+      polygon: List<Coordinate>.from(
+        (map['polygon'] as List).map(
+          (e) => Coordinate(lat: e['lat'], lng: e['lng']),
+        ),
+      ),
+      listSampling: List<GeoSampling>.from(
+        (map['listSampling'] as List).map(
+          (e) => GeoSampling.fromMap(e), // Assuming GeoSampling has fromMap
+        ),
+      ),
+      min: map['min'],
+      max: map['max'],
+      mapResolution: map['mapResolution'] ?? 70,
+      numberOfSubColors: map['numberOfSubColors'] ?? 100,
+      colors: List<Color>.from(
+        (map['colors'] as List).map((colorValue) => Color(colorValue)),
+      ),
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'polygon': polygon.map((e) => {'lat': e.lat, 'lng': e.lng}).toList(),
+      'listSampling': listSampling.map((e) => e.toMap()).toList(),
+      'min': min,
+      'max': max,
+      'mapResolution': mapResolution,
+      'numberOfSubColors': numberOfSubColors,
+      'colors': colors.map((color) => color.toARGB32()).toList(),
+    };
+  }
 }

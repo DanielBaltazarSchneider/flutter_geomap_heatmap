@@ -27,4 +27,36 @@ class GeoSampling {
       'color': color.toARGB32(),
     };
   }
+
+  static List<List<GeoSampling>> agruparPorIntervalos({
+    required List<GeoSampling> amostras,
+    int partes = 10,
+    double? min,
+    double? max,
+  }) {
+    // Filtra valores válidos
+    final validas = amostras.where((a) => a.value.isFinite).toList();
+    if (validas.isEmpty || partes <= 0) return [];
+
+    // Calcula min e max se não informados
+    final valorMin = min ?? validas.map((a) => a.value).reduce((a, b) => a < b ? a : b);
+    final valorMax = max ?? validas.map((a) => a.value).reduce((a, b) => a > b ? a : b);
+
+    if (valorMax == valorMin) {
+      // Evita divisão por zero
+      return [validas];
+    }
+
+    final intervalo = (valorMax - valorMin) / partes;
+    List<List<GeoSampling>> grupos = List.generate(partes, (_) => []);
+
+    for (var amostra in validas) {
+      int indice = ((amostra.value - valorMin) / intervalo).floor();
+      if (indice < 0) indice = 0;
+      if (indice >= partes) indice = partes - 1;
+      grupos[indice].add(amostra);
+    }
+
+    return grupos;
+  }
 }

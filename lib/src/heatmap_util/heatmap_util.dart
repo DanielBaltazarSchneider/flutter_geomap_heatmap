@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_geomap_heatmap/src/coordinate.dart';
 import 'package:flutter_geomap_heatmap/src/geo_sampling.dart';
@@ -13,12 +15,71 @@ class HeatmapUtil {
   }
 
   List<GeoSampling> generateMap({required Map<String, dynamic> heatmapOptionMap}) {
-    HeatmapOption heatmapOption = HeatmapOption.fromMap(heatmapOptionMap);
-    List<List<Coordinate>> subPolygons = geoUtil.generateSubPolygons(heatmapOption.polygon, heatmapOption.mapResolution);
-    subPolygons = geoUtil.cutExcessSubPolygons(heatmapOption.polygon, subPolygons);
+    final inicioTotal = DateTime.now();
 
+    var t = DateTime.now();
+    HeatmapOption heatmapOption = HeatmapOption.fromMap(heatmapOptionMap);
+    log('Tempo fromMap: ${DateTime.now().difference(t).inMilliseconds} ms');
+
+    t = DateTime.now();
+    List<Coordinate> polygon = geoUtil.aumentarPoligono(heatmapOption.polygon);
+    log('Tempo aumentarPoligono: ${DateTime.now().difference(t).inMilliseconds} ms');
+
+    t = DateTime.now();
+    List<List<Coordinate>> subPolygons = geoUtil.generateSubPolygons(polygon, heatmapOption.mapResolution);
+    log('Tempo generateSubPolygons: ${DateTime.now().difference(t).inMilliseconds} ms');
+
+    t = DateTime.now();
+    subPolygons = geoUtil.removerSubPoligonosForaDoPrincipal(polygon, subPolygons);
+    log('Tempo removerSubPoligonosForaDoPrincipal: ${DateTime.now().difference(t).inMilliseconds} ms');
+
+    t = DateTime.now();
+    List<List<List<Coordinate>>> separacao = geoUtil.separaComContatoNaLinhaPoligono(polygon, subPolygons);
+    List<List<Coordinate>> subPoligonosComContato = separacao.first;
+    List<List<Coordinate>> subPoligonosSemContato = separacao.last;
+    log("🕒 Separa com e sem contato: ${DateTime.now().difference(t).inMilliseconds} ms");
+
+    t = DateTime.now();
+    subPoligonosComContato = geoUtil.cortarSobrasSubPoligonos(polygon, subPoligonosComContato);
+    log("🕒 Cortar sobras: ${DateTime.now().difference(t).inMilliseconds} ms");
+
+    subPolygons = subPoligonosComContato + subPoligonosSemContato;
+
+    t = DateTime.now();
+    subPolygons = geoUtil.cutExcessSubPolygons(polygon, subPolygons);
+    log('Tempo cutExcessSubPolygons: ${DateTime.now().difference(t).inMilliseconds} ms');
+
+    t = DateTime.now();
     List<GeoSampling> calculatedSamples = geoUtil.calculateIDW(heatmapOption.listSampling, subPolygons, heatmapOption.numberOfSubColors);
+    log('Tempo calculateIDW: ${DateTime.now().difference(t).inMilliseconds} ms');
+
+    // t = DateTime.now();
+    // List<List<GeoSampling>> grupos = GeoSampling.agruparPorIntervalos(amostras: calculatedSamples, partes: 20);
+    // List<GeoSampling> amostrasAgrupadas = [];
+
+    // for (List<GeoSampling> grupo in grupos) {
+    //   // Junta os polígonos de mesmo intervalo de valor
+    //   List<List<Coordinate>> poligonos = grupo.map((amostra) => amostra.polygon).toList();
+    //   List<List<Coordinate>> poligonosUnificados = geoUtil.uniaoPoligonsMesmoValor(poligonos);
+
+    //   // Calcula a média dos valores do grupo
+    //   double media = grupo.map((a) => a.value).reduce((a, b) => a + b) / grupo.length;
+
+    //   // Cria nova GeoSampling para cada polígono unificado
+    //   for (List<Coordinate> poligono in poligonosUnificados) {
+    //     amostrasAgrupadas.add(
+    //       GeoSampling(polygon: poligono, value: media),
+    //     );
+    //   }
+    // }
+    // log('Tempo agrupamento intervalos: ${DateTime.now().difference(t).inMilliseconds} ms');
+
+    t = DateTime.now();
     calculatedSamples = geoUtil.generateColors(heatmapOption.min, heatmapOption.max, calculatedSamples, heatmapOption.colors);
+    log('Tempo generateColors: ${DateTime.now().difference(t).inMilliseconds} ms');
+
+    log('Tempo total: ${DateTime.now().difference(inicioTotal).inMilliseconds} ms');
+
     return calculatedSamples;
   }
 }

@@ -263,4 +263,140 @@ class GeoUtil {
     }
     return cutPolygons.isEmpty ? subPolygons : cutPolygons;
   }
+
+  List<Coordinate> aumentarPoligono(List<Coordinate> poligono, {double percentual = 3}) {
+    if (poligono.isEmpty) return poligono;
+
+    // 1. Calcular o centro
+    double mediaLat = poligono.map((p) => p.lat).reduce((a, b) => a + b) / poligono.length;
+    double mediaLng = poligono.map((p) => p.lng).reduce((a, b) => a + b) / poligono.length;
+
+    double fator = percentual / 100;
+
+    return poligono.map((p) {
+      double dx = p.lat - mediaLat;
+      double dy = p.lng - mediaLng;
+
+      // Aplica expansão proporcional à distância
+      return Coordinate(
+        lat: p.lat + dx * fator,
+        lng: p.lng + dy * fator,
+      );
+    }).toList();
+  }
+
+  List<List<Coordinate>> removerSubPoligonosForaDoPrincipal(List<Coordinate> polygon, List<List<Coordinate>> subPolygons) {
+    bool pointInPolygon(Coordinate point, List<Coordinate> polygon) {
+      int i, j = polygon.length - 1;
+      bool inside = false;
+      for (i = 0; i < polygon.length; i++) {
+        double xi = polygon[i].lng;
+        double yi = polygon[i].lat;
+        double xj = polygon[j].lng;
+        double yj = polygon[j].lat;
+
+        bool intersect = ((yi > point.lat) != (yj > point.lat)) && (point.lng < (xj - xi) * (point.lat - yi) / (yj - yi + 0.0) + xi);
+        if (intersect) inside = !inside;
+        j = i;
+      }
+      return inside;
+    }
+
+    List<List<Coordinate>> resultado = [];
+
+    for (var subPoly in subPolygons) {
+      // Mantém o subpolígono se pelo menos um ponto estiver dentro do polígono principal
+      bool algumPontoDentro = subPoly.any((p) => pointInPolygon(p, polygon));
+      if (algumPontoDentro) {
+        resultado.add(subPoly);
+      }
+    }
+
+    return resultado;
+  }
+
+  List<List<Coordinate>> uniaoPoligonsMesmoValor(List<List<Coordinate>> subPolygons) {
+    JTSUtil jtsUtil = JTSUtil();
+    List<List<Coordinate>> intersectedPolygons = jtsUtil.multiUnion(subPolygons);
+    return intersectedPolygons;
+  }
+
+  List<List<List<Coordinate>>> separaComContatoNaLinhaPoligono(List<Coordinate> polygon, List<List<Coordinate>> subPolygons) {
+    List<List<Coordinate>> comContato = [];
+    List<List<Coordinate>> semContato = [];
+
+    // Fecha o polígono principal, se necessário
+    List<Coordinate> poly = List.from(polygon);
+    if (poly.first != poly.last) {
+      poly.add(poly.first);
+    }
+
+    for (var subPoly in subPolygons) {
+      // Fecha o subpolígono, se necessário
+      List<Coordinate> sp = List.from(subPoly);
+      if (sp.first != sp.last) {
+        sp.add(sp.first);
+      }
+
+      bool haIntersecao = false;
+      for (int i = 0; i < sp.length - 1 && !haIntersecao; i++) {
+        for (int j = 0; j < poly.length - 1 && !haIntersecao; j++) {
+          if (segmentosInterceptam(sp[i], sp[i + 1], poly[j], poly[j + 1])) {
+            haIntersecao = true;
+          }
+        }
+      }
+
+      if (haIntersecao) {
+        comContato.add(subPoly);
+      } else {
+        semContato.add(subPoly);
+      }
+    }
+
+    return [comContato, semContato];
+  }
+
+  bool segmentosInterceptam(Coordinate p1, Coordinate p2, Coordinate q1, Coordinate q2) {
+    double orientacao(Coordinate a, Coordinate b, Coordinate c) {
+      return (b.lng - a.lng) * (c.lat - a.lat) - (b.lat - a.lat) * (c.lng - a.lng);
+    }
+
+    bool onSegment(Coordinate a, Coordinate b, Coordinate c) {
+      return c.lng <= a.lng.clamp(b.lng, b.lng) &&
+          c.lng >= a.lng.clamp(b.lng, b.lng) &&
+          c.lat <= a.lat.clamp(b.lat, b.lat) &&
+          c.lat >= a.lat.clamp(b.lat, b.lat);
+    }
+
+    double o1 = orientacao(p1, p2, q1);
+    double o2 = orientacao(p1, p2, q2);
+    double o3 = orientacao(q1, q2, p1);
+    double o4 = orientacao(q1, q2, p2);
+
+    // Caso geral
+    if ((o1 * o2 < 0) && (o3 * o4 < 0)) return true;
+
+    // Casos colineares
+    if (o1 == 0 && onSegment(p1, p2, q1)) return true;
+    if (o2 == 0 && onSegment(p1, p2, q2)) return true;
+    if (o3 == 0 && onSegment(q1, q2, p1)) return true;
+    if (o4 == 0 && onSegment(q1, q2, p2)) return true;
+
+    return false;
+  }
+
+  List<List<Coordinate>> cortarSobrasSubPoligonos(List<Coordinate> polygon, List<List<Coordinate>> subPolygons) {
+    List<List<Coordinate>> listPoligonsCortados = [];
+    JTSUtil jtsUtil = JTSUtil();
+    for (List<Coordinate> subPolygon in subPolygons) {
+      try {
+        List<List<Coordinate>> polys = jtsUtil.intersection(polygon, subPolygon);
+        listPoligonsCortados.addAll(polys);
+      } catch (e) {
+        listPoligonsCortados.add(subPolygon);
+      }
+    }
+    return listPoligonsCortados.isEmpty ? subPolygons : listPoligonsCortados;
+  }
 }

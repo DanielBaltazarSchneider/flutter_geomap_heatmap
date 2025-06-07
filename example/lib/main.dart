@@ -128,7 +128,7 @@ class Controller extends ChangeNotifier {
           points: sampling.polygon.map((e) => LatLng(e.lat, e.lng)).toList(),
           strokeWidth: 0,
           strokeColor: Colors.transparent,
-          fillColor: sampling.color.withOpacity(0.75),
+          fillColor: sampling.color.withValues(alpha: 0.75),
           consumeTapEvents: false,
         );
         heatmapPolygons.add(polygon);

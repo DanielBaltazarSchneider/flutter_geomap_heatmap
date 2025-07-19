@@ -2,6 +2,7 @@ import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_geomap_heatmap/src/coordinate.dart';
+import 'package:flutter_geomap_heatmap/src/extensions/color.dart';
 import 'package:flutter_geomap_heatmap/src/geo_sampling.dart';
 
 import '../geo_util/geo_util.dart';

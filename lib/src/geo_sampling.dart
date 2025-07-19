@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_geomap_heatmap/src/coordinate.dart';
+import 'package:flutter_geomap_heatmap/src/extensions/color.dart';
 
 class GeoSampling {
   GeoSampling({required this.polygon, required this.value, this.color = Colors.transparent});
